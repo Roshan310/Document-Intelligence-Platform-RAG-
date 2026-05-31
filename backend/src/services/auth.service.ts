@@ -31,11 +31,13 @@ const toAuthUser = (user: {
     id: number;
     email: string;
     role: AuthRole;
+    isBlocked: boolean;
     avatarUrl?: string | null;
 }): AuthUser => ({
     id: user.id,
     email: user.email,
     role: user.role,
+    isBlocked: user.isBlocked,
     avatarUrl: user.avatarUrl ?? generateGravatarUrl(user.email),
 });
 
@@ -52,7 +54,7 @@ export const register = async (
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const userRole = role ?? "user";
+    const userRole: AuthRole = "user";
     const avatarUrl = generateGravatarUrl(email);
     const verificationToken = generateVerificationToken();
     const verificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -94,6 +96,10 @@ export const login = async (email: string, password: string) => {
         throw new Error("Invalid credentials");
     }
 
+    if (user.isBlocked) {
+        throw new Error("Account is blocked");
+    }
+
     if (!user.isVerified) {
         throw new Error("Email not verified");
     }
@@ -126,4 +132,44 @@ export const verifyEmail = async (token: string) => {
             : toAuthUser(user),
         redirectUrl: VERIFICATION_SUCCESS_URL,
     };
+};
+
+export const blockUser = async (targetUserId: number, actorUserId: number) => {
+    const targetUser = await repo.findUserById(targetUserId);
+
+    if (!targetUser) {
+        throw new Error("User not found");
+    }
+
+    if (targetUser.role === "admin") {
+        throw new Error("Cannot modify admin users");
+    }
+
+    if (targetUser.id === actorUserId) {
+        throw new Error("Cannot modify your own account");
+    }
+
+    const updatedUser = await repo.setUserBlockedStatus(targetUser.id, true);
+
+    return updatedUser ? toAuthUser(updatedUser) : toAuthUser(targetUser);
+};
+
+export const unblockUser = async (targetUserId: number, actorUserId: number) => {
+    const targetUser = await repo.findUserById(targetUserId);
+
+    if (!targetUser) {
+        throw new Error("User not found");
+    }
+
+    if (targetUser.role === "admin") {
+        throw new Error("Cannot modify admin users");
+    }
+
+    if (targetUser.id === actorUserId) {
+        throw new Error("Cannot modify your own account");
+    }
+
+    const updatedUser = await repo.setUserBlockedStatus(targetUser.id, false);
+
+    return updatedUser ? toAuthUser(updatedUser) : toAuthUser(targetUser);
 };

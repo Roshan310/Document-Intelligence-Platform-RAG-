@@ -1,9 +1,9 @@
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
-import { JwtUser } from "../types/auth";
+import { AuthRole, JwtUser } from "../types/auth";
 import * as userRepo from "../repositories/user.repo";
 
-type AuthenticatedRequest = Request & {
+export type AuthenticatedRequest = Request & {
   user?: JwtUser;
 };
 
@@ -30,7 +30,19 @@ export async function requireAuth(
 
     const user = await userRepo.findUserById(decoded.id);
 
-    if (!user || !user.isVerified) {
+    if (!user) {
+      return res.status(403).json({
+        message: "Account not found",
+      });
+    }
+
+    if (user.isBlocked) {
+      return res.status(403).json({
+        message: "Account is blocked",
+      });
+    }
+
+    if (!user.isVerified) {
       return res.status(403).json({
         message: "Email not verified",
       });
@@ -43,4 +55,25 @@ export async function requireAuth(
       message: "Invalid or expired token",
     });
   }
+}
+
+export function requireRole(...allowedRoles: AuthRole[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthenticatedRequest;
+    const user = authReq.user;
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Missing authorization token",
+      });
+    }
+
+    if (!allowedRoles.includes(user.role)) {
+      return res.status(403).json({
+        message: "Forbidden",
+      });
+    }
+
+    next();
+  };
 }

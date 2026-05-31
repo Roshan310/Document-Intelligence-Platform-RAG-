@@ -4,6 +4,7 @@ export type AuthUser = {
   id: number;
   email: string;
   role: AuthRole;
+  isBlocked: boolean;
   avatarUrl: string;
 };
 

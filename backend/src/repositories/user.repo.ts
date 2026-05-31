@@ -27,6 +27,19 @@ export const findUserById = async (id: number) => {
     return await User.findByPk(id);
 };
 
+export const setUserBlockedStatus = async (id: number, isBlocked: boolean) => {
+    await User.update(
+        {
+            isBlocked,
+        },
+        {
+            where: { id },
+        }
+    );
+
+    return await User.findByPk(id);
+};
+
 export const findUserByVerificationToken = async (verificationToken: string) => {
     return await User.findOne({ where: { verificationToken } });
 };

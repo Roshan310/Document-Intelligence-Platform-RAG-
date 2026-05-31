@@ -66,7 +66,6 @@ export async function askController(
 
     const answer = await askQuestion(
       question,
-      authReq.user.id,
       Number.isFinite(normalizedDocumentId)
         ? normalizedDocumentId
         : undefined

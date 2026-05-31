@@ -15,6 +15,7 @@ export class User extends Model<
     declare email: string;
     declare password: string;
     declare role: CreationOptional<"admin" | "user">;
+    declare isBlocked: CreationOptional<boolean>;
     declare avatarUrl: CreationOptional<string | null>;
     declare isVerified: CreationOptional<boolean>;
     declare verificationToken: CreationOptional<string | null>;
@@ -41,6 +42,11 @@ User.init(
             type: DataTypes.ENUM('admin', 'user'),
             defaultValue: "user",
             allowNull: false,
+        },
+        isBlocked: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
         },
         avatarUrl: {
             type: DataTypes.STRING(512),

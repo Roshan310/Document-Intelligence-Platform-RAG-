@@ -6,13 +6,14 @@ import {
 } from "../controllers/rag.controller";
 
 import { upload } from "../middlewares/upload";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth, requireRole } from "../middlewares/auth";
 
 const router = Router();
 
 router.post(
   "/upload",
   requireAuth,
+  requireRole("admin"),
   upload.single("file"),
   uploadController
 );

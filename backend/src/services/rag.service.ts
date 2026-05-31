@@ -52,7 +52,6 @@ export async function uploadDocument(
 
 export async function askQuestion(
   question: string,
-  userId: number,
   documentId?: number
 ) {
   if (!question.trim()) {
@@ -64,7 +63,6 @@ export async function askQuestion(
 
   const results: any =
     await searchSimilarChunks(questionEmbedding, {
-      userId,
       documentId,
     });
 

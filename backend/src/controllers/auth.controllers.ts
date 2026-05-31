@@ -34,7 +34,11 @@ export const login = async (req: any , res: any) => {
     res.json(result);
     } catch (error) {
         const message = error instanceof Error ? error.message : "Login failed";
-        const status = message === "Invalid credentials" ? 401 : message === "Email not verified" ? 403 : 500;
+        const status = message === "Invalid credentials"
+            ? 401
+            : message === "Email not verified" || message === "Account is blocked"
+                ? 403
+                : 500;
 
         res.status(status).json({ message });
     }
@@ -49,6 +53,64 @@ export const verifyEmail = async (req: any, res: any) => {
     } catch (error) {
         const message = error instanceof Error ? error.message : "Verification failed";
         const status = message === "Invalid or expired verification token" || message === "Verification token is required" ? 400 : 500;
+
+        res.status(status).json({ message });
+    }
+}
+
+export const blockUser = async (req: any, res: any) => {
+    try {
+        const targetUserId = Number(req.params?.id);
+        const actorUserId = Number(req.user?.id);
+
+        if (!Number.isFinite(targetUserId)) {
+            return res.status(400).json({
+                message: "Valid user id is required",
+            });
+        }
+
+        const result = await authService.blockUser(targetUserId, actorUserId);
+
+        return res.json({
+            message: "User blocked",
+            user: result,
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Block failed";
+        const status = message === "User not found"
+            ? 404
+            : message === "Cannot modify admin users" || message === "Cannot modify your own account"
+                ? 403
+                : 500;
+
+        res.status(status).json({ message });
+    }
+}
+
+export const unblockUser = async (req: any, res: any) => {
+    try {
+        const targetUserId = Number(req.params?.id);
+        const actorUserId = Number(req.user?.id);
+
+        if (!Number.isFinite(targetUserId)) {
+            return res.status(400).json({
+                message: "Valid user id is required",
+            });
+        }
+
+        const result = await authService.unblockUser(targetUserId, actorUserId);
+
+        return res.json({
+            message: "User unblocked",
+            user: result,
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Unblock failed";
+        const status = message === "User not found"
+            ? 404
+            : message === "Cannot modify admin users" || message === "Cannot modify your own account"
+                ? 403
+                : 500;
 
         res.status(status).json({ message });
     }
