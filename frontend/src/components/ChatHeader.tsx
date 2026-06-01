@@ -1,5 +1,6 @@
 import type { ChatConversation } from '../types/chat';
 import type { AuthUser } from '../types/auth';
+import { UserAvatar } from './UserAvatar';
 
 interface ChatHeaderProps {
   conversation: ChatConversation | null;
@@ -22,15 +23,18 @@ export const ChatHeader = ({ conversation, isSidebarOpen, onToggleSidebar, user 
           {isSidebarOpen ? '✕' : '☰'}
         </button>
 
-        <div>
+        {/* <div>
           <div className="chat-header__eyebrow">Workspace assistant</div>
           <h1 className="chat-header__title">{conversation?.title ?? 'Conversation'}</h1>
-        </div>
+        </div> */}
       </div>
 
       <div className="chat-header__meta">
-        <span className="pill pill--accent">{user?.role ?? 'Guest'}</span>
-        <span className="chat-header__subtitle">{conversation?.subtitle ?? 'Choose a thread from the sidebar'}</span>
+        <UserAvatar user={user} size={40} />
+        <div className="chat-header__meta-copy">
+          <span className="chat-header__eyebrow">{user?.role ?? 'Guest'}</span>
+          <span className="chat-header__subtitle">{user?.email ?? conversation?.subtitle ?? 'Choose a thread from the sidebar'}</span>
+        </div>
       </div>
     </header>
   );

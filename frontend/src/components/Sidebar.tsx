@@ -40,16 +40,16 @@ export const Sidebar = ({
     <aside className="sidebar">
       <div className="sidebar__top">
         <div className="brand-row">
-          <div className="brand-mark">R</div>
+          {/* <div className="brand-mark">R</div> */}
           <div>
             <div className="brand-title">RAG Workspace</div>
-            <div className="brand-subtitle">{user?.email ?? 'Authenticated workspace'}</div>
+            {/* <div className="brand-subtitle">{user?.email ?? 'Authenticated workspace'}</div> */}
           </div>
         </div>
 
-        <button className="sidebar__close" type="button" onClick={onCloseSidebar} aria-label="Close sidebar">
+        {/* <button className="sidebar__close" type="button" onClick={onCloseSidebar} aria-label="Close sidebar">
           ×
-        </button>
+        </button> */}
       </div>
 
       <button className="sidebar__primary-action" type="button" onClick={onCreateConversation}>
@@ -126,7 +126,7 @@ export const Sidebar = ({
         <div className="status-dot" />
         <div className="sidebar__footer-copy">
           <div className="sidebar__footer-title">{user?.role === 'admin' ? 'Admin access' : 'User access'}</div>
-          <div className="sidebar__footer-subtitle">Connected to backend APIs</div>
+          {/* <div className="sidebar__footer-subtitle">Connected to backend APIs</div> */}
         </div>
         {onLogout ? (
           <button className="sidebar__logout-button" type="button" onClick={onLogout}>

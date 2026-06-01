@@ -9,6 +9,8 @@ router.post("/register", authController.register);
 router.post("/login", authController.login);
 router.get("/verify-email", authController.verifyEmail);
 router.get("/verification-success", authController.verificationSuccess);
+
+//these are for admins only
 router.patch("/users/:id/block", requireAuth, requireRole("admin"), authController.blockUser);
 router.patch("/users/:id/unblock", requireAuth, requireRole("admin"), authController.unblockUser);
 

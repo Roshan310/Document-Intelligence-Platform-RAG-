@@ -54,7 +54,7 @@ export const register = async (
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const userRole: AuthRole = "user";
+    const userRole: AuthRole = role || "user";
     const avatarUrl = generateGravatarUrl(email);
     const verificationToken = generateVerificationToken();
     const verificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);

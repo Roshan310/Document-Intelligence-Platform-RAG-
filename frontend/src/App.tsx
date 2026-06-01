@@ -5,9 +5,10 @@ import { ChatHeader } from './components/ChatHeader';
 import { Composer } from './components/Composer';
 import { MessageList } from './components/MessageList';
 import { Sidebar } from './components/Sidebar';
-import { ApiError, uploadRequest } from './lib/api';
+import { ApiError, listUploadedDocumentsRequest, uploadRequest } from './lib/api';
 import { useAuth } from './hooks/useAuth';
 import { useChat } from './hooks/useChat';
+import type { UploadedDocument } from './types/document';
 
 export const App = () => {
   const auth = useAuth();
@@ -20,6 +21,9 @@ export const App = () => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (auth.user) {
@@ -27,6 +31,52 @@ export const App = () => {
       setActiveView(auth.user.role === 'admin' ? 'admin' : 'chat');
     }
   }, [auth.user]);
+
+  useEffect(() => {
+    if (!auth.user || auth.user.role !== 'admin' || !auth.token) {
+      setUploadedDocuments([]);
+      setDocumentsLoading(false);
+      setDocumentsError(null);
+      return;
+    }
+
+    let isCancelled = false;
+    const token = auth.token;
+
+    const loadDocuments = async () => {
+      setDocumentsLoading(true);
+      setDocumentsError(null);
+
+      try {
+        const result = await listUploadedDocumentsRequest(token);
+
+        if (!isCancelled) {
+          setUploadedDocuments(result.documents);
+        }
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        setUploadedDocuments([]);
+        setDocumentsError(error instanceof Error ? error.message : 'Failed to load uploaded documents');
+
+        if (error instanceof ApiError) {
+          auth.handleApiError(error);
+        }
+      } finally {
+        if (!isCancelled) {
+          setDocumentsLoading(false);
+        }
+      }
+    };
+
+    void loadDocuments();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [auth.token, auth.user]);
 
   const closeSidebarOnMobile = () => {
     if (window.matchMedia('(max-width: 920px)').matches) {
@@ -93,6 +143,8 @@ export const App = () => {
     try {
       const result = await uploadRequest(auth.token, file);
       setUploadStatus(`Uploaded ${file.name} (${result.chunkCount} chunks)`);
+      const documentsResult = await listUploadedDocumentsRequest(auth.token);
+      setUploadedDocuments(documentsResult.documents);
     } catch (error) {
       setUploadStatus(error instanceof Error ? error.message : 'Upload failed');
 
@@ -149,6 +201,9 @@ export const App = () => {
       {auth.user.role === 'admin' && activeView === 'admin' ? (
         <AdminPanel
           user={auth.user}
+          documents={uploadedDocuments}
+          documentsLoading={documentsLoading}
+          documentsError={documentsError}
           onUploadDocument={handleUploadDocument}
           uploadStatus={uploadStatus}
           isUploading={isUploading}

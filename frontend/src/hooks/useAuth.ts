@@ -12,7 +12,34 @@ function loadStoredSession() {
       return null;
     }
 
-    return JSON.parse(rawSession) as AuthSession;
+    const parsedSession = JSON.parse(rawSession) as Partial<AuthSession> | null;
+
+    if (!parsedSession || typeof parsedSession !== 'object') {
+      return null;
+    }
+
+    const user = parsedSession.user;
+
+    if (!user || typeof user !== 'object') {
+      return null;
+    }
+
+    const normalizedUser: AuthUser = {
+      id: typeof user.id === 'number' ? user.id : 0,
+      email: typeof user.email === 'string' ? user.email : '',
+      role: user.role === 'admin' ? 'admin' : 'user',
+      isBlocked: Boolean(user.isBlocked),
+      avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : null,
+    };
+
+    if (!parsedSession.token || typeof parsedSession.token !== 'string' || !normalizedUser.email || !normalizedUser.id) {
+      return null;
+    }
+
+    return {
+      token: parsedSession.token,
+      user: normalizedUser,
+    } satisfies AuthSession;
   } catch {
     return null;
   }

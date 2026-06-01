@@ -25,7 +25,17 @@ export const MessageList = ({ messages }: MessageListProps) => {
           >
             <div className="message-row__avatar">{message.role === 'assistant' ? 'R' : 'You'}</div>
             <div className="message-row__content">
-              <div className="message-row__bubble">{message.content}</div>
+              <div className={`message-row__bubble${message.isStreaming ? ' message-row__bubble--streaming' : ''}`}>
+                {message.isStreaming && !message.content ? (
+                  <span className="typing-indicator" aria-label="Assistant is typing">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                ) : (
+                  message.content
+                )}
+              </div>
               <div className="message-row__time">{message.timestamp}</div>
             </div>
           </article>

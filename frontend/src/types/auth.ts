@@ -5,7 +5,7 @@ export interface AuthUser {
   email: string;
   role: AuthRole;
   isBlocked: boolean;
-  avatarUrl: string;
+  avatarUrl: string | null;
 }
 
 export interface AuthSession {

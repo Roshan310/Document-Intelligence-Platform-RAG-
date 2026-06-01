@@ -5,6 +5,7 @@ export interface ChatMessage {
   role: MessageRole;
   content: string;
   timestamp: string;
+  isStreaming?: boolean;
 }
 
 export interface ChatConversation {

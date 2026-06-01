@@ -1,7 +1,12 @@
 import type { AuthUser } from '../types/auth';
+import type { UploadedDocument } from '../types/document';
+import { UserAvatar } from './UserAvatar';
 
 interface AdminPanelProps {
   user: AuthUser;
+  documents: UploadedDocument[];
+  documentsLoading: boolean;
+  documentsError: string | null;
   onUploadDocument: (file: File) => void;
   uploadStatus: string | null;
   isUploading: boolean;
@@ -10,6 +15,9 @@ interface AdminPanelProps {
 
 export const AdminPanel = ({
   user,
+  documents,
+  documentsLoading,
+  documentsError,
   onUploadDocument,
   uploadStatus,
   isUploading,
@@ -35,8 +43,12 @@ export const AdminPanel = ({
         </div>
 
         <div className="chat-header__meta">
+          <UserAvatar user={user} size={38} />
+          <div className="chat-header__meta-copy">
+            <span className="chat-header__eyebrow">{user.email}</span>
+            <span className="chat-header__subtitle">Admin workspace access</span>
+          </div>
           <span className="pill pill--accent">{user.role}</span>
-          <span className="chat-header__subtitle">Upload PDFs, DOCX files, and TXT documents</span>
         </div>
       </header>
 
@@ -72,8 +84,55 @@ export const AdminPanel = ({
               {uploadStatus ?? 'No upload in progress.'}
             </div>
           </div>
+
+          <div className="admin-card admin-card--documents">
+            <div className="admin-card__eyebrow">Uploaded documents</div>
+            <h2 className="admin-card__title">All files stored in the workspace</h2>
+           
+
+            {documentsLoading ? (
+              <div className="admin-card__status">Loading uploaded documents...</div>
+            ) : documentsError ? (
+              <div className="admin-card__status admin-card__status--error">{documentsError}</div>
+            ) : documents.length === 0 ? (
+              <div className="admin-card__status">No documents have been uploaded yet.</div>
+            ) : (
+              <div className="admin-documents-list">
+                {documents.map((document) => (
+                  <article key={document.id} className="admin-document-row">
+                    <div className="admin-document-row__main">
+                      <div className="admin-document-row__title">{document.filename}</div>
+                      <div className="admin-document-row__meta">
+                        <span>{document.mimeType}</span>
+                        <span>Uploaded by user #{document.userId}</span>
+                      </div>
+                    </div>
+
+                    <div className="admin-document-row__badge">{formatFileSize(document.sizeBytes)}</div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </main>
   );
 };
+
+function formatFileSize(sizeBytes: number) {
+  if (!Number.isFinite(sizeBytes) || sizeBytes < 1024) {
+    return `${Math.max(0, sizeBytes)} B`;
+  }
+
+  const units = ['KB', 'MB', 'GB'];
+  let value = sizeBytes / 1024;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+}

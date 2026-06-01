@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ApiError, askRequest } from '../lib/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ApiError, askStreamRequest } from '../lib/api';
 import type { AuthUser } from '../types/auth';
 import type { ChatConversation, ChatMessage } from '../types/chat';
 
@@ -16,6 +16,17 @@ const formatTime = (date: Date) =>
   }).format(date);
 
 const conversationStorageKey = (userId: number) => `rag-conversations:${userId}`;
+const STREAM_RENDER_INTERVAL_MS = 80;
+const STREAM_CHUNK_SLICE_SIZE = 8;
+
+type StreamState = {
+  timerId: number | null;
+  queue: string[];
+  completed: boolean;
+  targetConversationId: string;
+  assistantPlaceholderId: string;
+  resolveCompletion: (() => void) | null;
+};
 
 const createStarterConversation = (): ChatConversation => ({
   id: createId(),
@@ -66,6 +77,23 @@ export function useChat(
   const [activeConversationId, setActiveConversationId] = useState('');
   const [isSending, setIsSending] = useState(false);
 
+  const streamRef = useRef<StreamState>({
+    timerId: null,
+    queue: [],
+    completed: false,
+    targetConversationId: '',
+    assistantPlaceholderId: '',
+    resolveCompletion: null,
+  });
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current.timerId !== null) {
+        window.clearTimeout(streamRef.current.timerId);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!user) {
       setConversations([]);
@@ -101,6 +129,129 @@ export function useChat(
     setActiveConversationId(conversation.id);
   };
 
+  const stopStreamTimer = () => {
+    if (streamRef.current.timerId !== null) {
+      window.clearTimeout(streamRef.current.timerId);
+      streamRef.current.timerId = null;
+    }
+  };
+
+  const finalizeStreamingMessage = () => {
+    const { targetConversationId, assistantPlaceholderId } = streamRef.current;
+
+    if (!targetConversationId || !assistantPlaceholderId) {
+      streamRef.current.resolveCompletion?.();
+      streamRef.current.resolveCompletion = null;
+      return;
+    }
+
+    setConversations((previous) =>
+      previous.map((conversation) => {
+        if (conversation.id !== targetConversationId) {
+          return conversation;
+        }
+
+        return {
+          ...conversation,
+          messages: conversation.messages.map((message) =>
+            message.id === assistantPlaceholderId
+              ? {
+                  ...message,
+                  isStreaming: false,
+                  timestamp: formatTime(new Date()),
+                }
+              : message,
+          ),
+        };
+      }),
+    );
+
+    streamRef.current.targetConversationId = '';
+    streamRef.current.assistantPlaceholderId = '';
+    streamRef.current.resolveCompletion?.();
+    streamRef.current.resolveCompletion = null;
+  };
+
+  const pumpStreamQueue = () => {
+    const state = streamRef.current;
+
+    if (state.timerId !== null) {
+      return;
+    }
+
+    const tick = () => {
+      const nextChunk = state.queue.shift();
+
+      if (!nextChunk) {
+        state.timerId = null;
+
+        if (state.completed) {
+          finalizeStreamingMessage();
+        }
+
+        return;
+      }
+
+      const targetConversationId = state.targetConversationId;
+      const assistantPlaceholderId = state.assistantPlaceholderId;
+
+      setConversations((previous) =>
+        previous.map((conversation) => {
+          if (conversation.id !== targetConversationId) {
+            return conversation;
+          }
+
+          return {
+            ...conversation,
+            messages: conversation.messages.map((message) =>
+              message.id === assistantPlaceholderId
+                ? {
+                    ...message,
+                    content: `${message.content}${nextChunk}`,
+                  }
+                : message,
+            ),
+          };
+        }),
+      );
+
+      state.timerId = window.setTimeout(tick, STREAM_RENDER_INTERVAL_MS);
+    };
+
+    state.timerId = window.setTimeout(tick, STREAM_RENDER_INTERVAL_MS);
+  };
+
+  const queueStreamingChunk = (targetConversationId: string, assistantPlaceholderId: string, delta: string) => {
+    const chunks: string[] = [];
+
+    for (let index = 0; index < delta.length; index += STREAM_CHUNK_SLICE_SIZE) {
+      chunks.push(delta.slice(index, index + STREAM_CHUNK_SLICE_SIZE));
+    }
+
+    streamRef.current.targetConversationId = targetConversationId;
+    streamRef.current.assistantPlaceholderId = assistantPlaceholderId;
+    streamRef.current.queue.push(...chunks.filter(Boolean));
+
+    pumpStreamQueue();
+  };
+
+  const markStreamCompleted = () => {
+    streamRef.current.completed = true;
+
+    if (streamRef.current.timerId === null && streamRef.current.queue.length === 0) {
+      finalizeStreamingMessage();
+    }
+  };
+
+  const resetStreamState = () => {
+    stopStreamTimer();
+    streamRef.current.queue = [];
+    streamRef.current.completed = false;
+    streamRef.current.targetConversationId = '';
+    streamRef.current.assistantPlaceholderId = '';
+    streamRef.current.resolveCompletion = null;
+  };
+
   const sendMessage = async (content: string) => {
     const trimmedContent = content.trim();
 
@@ -119,6 +270,14 @@ export function useChat(
     };
 
     const assistantPlaceholderId = createId();
+
+    resetStreamState();
+    streamRef.current.targetConversationId = targetConversationId;
+    streamRef.current.assistantPlaceholderId = assistantPlaceholderId;
+
+    const streamCompletion = new Promise<void>((resolve) => {
+      streamRef.current.resolveCompletion = resolve;
+    });
 
     setIsSending(true);
     setConversations((previous) =>
@@ -140,7 +299,8 @@ export function useChat(
             {
               id: assistantPlaceholderId,
               role: 'assistant',
-              content: 'Thinking...',
+              content: '',
+              isStreaming: true,
               timestamp: formatTime(new Date(now.getTime() + 30 * 1000)),
             },
           ],
@@ -149,37 +309,30 @@ export function useChat(
     );
 
     try {
-      const result = await askRequest(token, trimmedContent);
+      await askStreamRequest({
+        token,
+        question: trimmedContent,
+        onChunk: (delta) => {
+          queueStreamingChunk(targetConversationId, assistantPlaceholderId, delta);
+        },
+      });
 
-      setConversations((previous) =>
-        previous.map((conversation) => {
-          if (conversation.id !== targetConversationId) {
-            return conversation;
-          }
-
-          return {
-            ...conversation,
-            messages: conversation.messages.map((message) =>
-              message.id === assistantPlaceholderId
-                ? {
-                    ...message,
-                    content: result.answer,
-                    timestamp: formatTime(new Date(now.getTime() + 60 * 1000)),
-                  }
-                : message,
-            ),
-          };
-        }),
-      );
+      markStreamCompleted();
+      await streamCompletion;
     } catch (error) {
       const message =
         error instanceof ApiError
           ? error.message
           : 'Question failed. Please try again.';
 
+      const resolveCompletion = streamRef.current.resolveCompletion;
+
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         onUnauthorized();
       }
+
+      resetStreamState();
+      resolveCompletion?.();
 
       setConversations((previous) =>
         previous.map((conversation) => {
@@ -194,6 +347,7 @@ export function useChat(
                 ? {
                     ...messageItem,
                     content: message,
+                    isStreaming: false,
                   }
                 : messageItem,
             ),

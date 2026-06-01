@@ -7,7 +7,7 @@ import { createEmbedding, formatEmbedding } from "../rag/embedding";
 
 import { searchSimilarChunks } from "../repositories/rag.repository";
 
-import { generateAnswer } from "../rag/generation";
+import { generateAnswer, generateAnswerStream } from "../rag/generation";
 
 export async function uploadDocument(
   file: Express.Multer.File,
@@ -80,4 +80,31 @@ export async function askQuestion(
   );
 
   return answer;
+}
+
+export async function streamQuestionAnswer(
+  question: string,
+  documentId?: number
+) {
+  if (!question.trim()) {
+    throw new Error("Question is required");
+  }
+
+  const questionEmbedding =
+    await createEmbedding(question, "query");
+
+  const results: any =
+    await searchSimilarChunks(questionEmbedding, {
+      documentId,
+    });
+
+  const context = results
+    .map((item: any) => `${item.filename}: ${item.content}`)
+    .join("\n\n");
+
+  if (!context.trim()) {
+    throw new Error("No relevant context found for this question");
+  }
+
+  return generateAnswerStream(question, context);
 }
