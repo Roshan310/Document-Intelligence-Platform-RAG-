@@ -3,6 +3,11 @@ import { Router } from "express";
 import {
   uploadController,
   listDocumentsController,
+  deleteDocumentController,
+  listChatConversationsController,
+  getChatConversationController,
+  createChatConversationController,
+  deleteChatConversationController,
   askController,
   askStreamController,
 } from "../controllers/rag.controller";
@@ -17,6 +22,37 @@ router.get(
   requireAuth,
   requireRole("admin"),
   listDocumentsController
+);
+
+router.delete(
+  "/documents/:id",
+  requireAuth,
+  requireRole("admin"),
+  deleteDocumentController
+);
+
+router.get(
+  "/chats",
+  requireAuth,
+  listChatConversationsController
+);
+
+router.post(
+  "/chats",
+  requireAuth,
+  createChatConversationController
+);
+
+router.get(
+  "/chats/:id",
+  requireAuth,
+  getChatConversationController
+);
+
+router.delete(
+  "/chats/:id",
+  requireAuth,
+  deleteChatConversationController
 );
 
 router.post(

@@ -1,12 +1,12 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import crypto from "crypto";
 import * as repo from "../repositories/user.repo";
 import { AuthRole, AuthUser } from "../types/auth";
 import { sendVerificationEmail } from "./email.service";
+import { generateGravatarUrl, generateVerificationToken, buildVerificationUrl } from "../utils/user.utils";
 
+export const APP_URL = process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? 8000}`;
 const JWT_SECRET = process.env.JWT_SECRET!;
-const APP_URL = process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? 8000}`;
 const VERIFICATION_SUCCESS_URL =
     process.env.VERIFICATION_SUCCESS_URL ?? `${APP_URL}/api/auth/verification-success`;
 
@@ -14,18 +14,6 @@ const generateToken = (user: { id: number; role: AuthRole }) =>
     jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, {
         expiresIn: "24h",
     });
-
-const generateVerificationToken = () => crypto.randomBytes(32).toString("hex");
-
-const generateGravatarUrl = (email: string) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const hash = crypto.createHash("md5").update(normalizedEmail).digest("hex");
-
-    return `https://www.gravatar.com/avatar/${hash}?s=200&d=identicon&r=g`;
-};
-
-const buildVerificationUrl = (token: string) =>
-    `${APP_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
 
 const toAuthUser = (user: {
     id: number;
@@ -40,7 +28,6 @@ const toAuthUser = (user: {
     isBlocked: user.isBlocked,
     avatarUrl: user.avatarUrl ?? generateGravatarUrl(user.email),
 });
-
 
 export const register = async (
     email: string,
@@ -172,4 +159,45 @@ export const unblockUser = async (targetUserId: number, actorUserId: number) => 
     const updatedUser = await repo.setUserBlockedStatus(targetUser.id, false);
 
     return updatedUser ? toAuthUser(updatedUser) : toAuthUser(targetUser);
+};
+
+export const updatePassword = async (
+    userId: number,
+    currentPassword: string,
+    newPassword: string
+) => {
+    if (!currentPassword || !newPassword) {
+        throw new Error("Current password and new password are required");
+    }
+
+    if (newPassword.length < 8) {
+        throw new Error("New password must be at least 8 characters");
+    }
+
+    if (currentPassword === newPassword) {
+        throw new Error("New password must be different from current password");
+    }
+
+    const user = await repo.findUserById(userId);
+
+    if (!user) {
+        throw new Error("User not found");
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+        throw new Error("Current password is incorrect");
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const updatedUser = await repo.updateUserPassword(user.id, hashedPassword);
+
+    return updatedUser ? toAuthUser(updatedUser) : toAuthUser(user);
+};
+
+export const listUsers = async (excludedUserId: number) => {
+    const users = await repo.listUsersExceptId(excludedUserId);
+
+    return users.map((user) => toAuthUser(user));
 };

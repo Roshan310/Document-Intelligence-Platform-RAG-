@@ -11,6 +11,8 @@ import { User } from "./models/user.model";
 import "./models/document.model";
 import "./models/chunk.model";
 import "./models/user.model";
+import "./models/chat-conversation.model";
+import "./models/chat-message.model";
 
 async function start() {
   try {

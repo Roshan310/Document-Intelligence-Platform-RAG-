@@ -116,6 +116,69 @@ export const unblockUser = async (req: any, res: any) => {
     }
 }
 
+export const updatePassword = async (req: any, res: any) => {
+    try {
+        const actorUserId = Number(req.user?.id);
+        const { currentPassword, newPassword } = req.body ?? {};
+
+        if (!Number.isFinite(actorUserId)) {
+            return res.status(401).json({
+                message: "Unauthorized",
+            });
+        }
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                message: "Current password and new password are required",
+            });
+        }
+
+        const user = await authService.updatePassword(
+            actorUserId,
+            currentPassword,
+            newPassword
+        );
+
+        return res.json({
+            message: "Password updated",
+            user,
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Password update failed";
+        const status = message === "User not found"
+            ? 404
+            : message === "Current password is incorrect"
+                ? 401
+                : message === "Current password and new password are required" ||
+                    message === "New password must be at least 8 characters" ||
+                    message === "New password must be different from current password"
+                    ? 400
+                    : 500;
+
+        res.status(status).json({ message });
+    }
+}
+
+export const listUsers = async (req: any, res: any) => {
+    try {
+        const actorUserId = Number(req.user?.id);
+
+        if (!Number.isFinite(actorUserId)) {
+            return res.status(401).json({
+                message: "Unauthorized",
+            });
+        }
+
+        const users = await authService.listUsers(actorUserId);
+
+        return res.json({ users });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to load users";
+
+        res.status(500).json({ message });
+    }
+}
+
 export const verificationSuccess = (req: any, res: any) => {
     res.status(200).send(`
         <!doctype html>
