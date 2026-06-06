@@ -1,5 +1,6 @@
 import type { ChatConversation } from '../types/chat';
 import type { AuthUser } from '../types/auth';
+import { UserAvatar } from './UserAvatar';
 
 interface SidebarProps {
   conversations: ChatConversation[];
@@ -9,6 +10,7 @@ interface SidebarProps {
   onSelectConversation: (conversationId: string) => void;
   onCreateConversation: () => void;
   onLogout?: () => void;
+  onOpenPasswordModal?: () => void;
   user: AuthUser | null;
   activeView: 'chat' | 'admin';
   onViewChange: (view: 'chat' | 'admin') => void;
@@ -23,6 +25,7 @@ export const Sidebar = ({
   onSelectConversation,
   onCreateConversation,
   onLogout,
+  onOpenPasswordModal,
   user,
   activeView,
   onViewChange,
@@ -108,14 +111,14 @@ export const Sidebar = ({
                   <span className="conversation-card__title">{conversation.title}</span>
                   <span className="conversation-card__time">{conversation.updatedAt}</span>
                 </div>
-                <p className="conversation-card__subtitle">{conversation.subtitle}</p>
-                <div className="conversation-card__tags">
+                {/* <p className="conversation-card__subtitle">{conversation.subtitle}</p> */}
+                {/* <div className="conversation-card__tags">
                   {conversation.tags.map((tag) => (
                     <span key={tag} className="pill pill--muted">
                       {tag}
                     </span>
                   ))}
-                </div>
+                </div> */}
               </button>
             );
           })
@@ -123,15 +126,24 @@ export const Sidebar = ({
       </div>
 
       <div className="sidebar__footer">
-        <div className="status-dot" />
-        <div className="sidebar__footer-copy">
-          <div className="sidebar__footer-title">{user?.role === 'admin' ? 'Admin access' : 'User access'}</div>
-          {/* <div className="sidebar__footer-subtitle">Connected to backend APIs</div> */}
+        <div className="sidebar__footer-main">
+          <UserAvatar user={user} size={30} />
+          <div className="sidebar__footer-copy">
+            <div className="sidebar__footer-email">{user?.email ?? 'Signed in'}</div>
+            {/* <div className="sidebar__footer-subtitle">{user?.role === 'admin' ? 'Admin access' : 'User access'}</div> */}
+          </div>
         </div>
         {onLogout ? (
-          <button className="sidebar__logout-button" type="button" onClick={onLogout}>
-            Log out
-          </button>
+          <div className="sidebar__footer-actions">
+            {onOpenPasswordModal ? (
+              <button className="sidebar__logout-button" type="button" onClick={onOpenPasswordModal}>
+                Password
+              </button>
+            ) : null}
+            <button className="sidebar__logout-button" type="button" onClick={onLogout}>
+              Log out
+            </button>
+          </div>
         ) : null}
       </div>
     </aside>

@@ -1,4 +1,5 @@
-import type { AuthResponse, RegisterResponse } from '../types/auth';
+import type { AuthResponse, ListUsersResponse, RegisterResponse } from '../types/auth';
+import type { ApiChatConversation, ApiChatMessage } from '../types/chat';
 import type { ListDocumentsResponse } from '../types/document';
 
 const DEFAULT_API_BASE_URL = 'http://localhost:8000';
@@ -22,9 +23,16 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
 interface AskStreamOptions {
   token: string;
   question: string;
+  conversationId?: number;
   documentId?: number;
   onChunk: (delta: string) => void;
   onStart?: () => void;
+  onSaved?: (savedChat: SaveChatResponse) => void;
+}
+
+export interface SaveChatResponse {
+  conversation: ApiChatConversation;
+  messages: ApiChatMessage[];
 }
 
 async function readErrorMessage(response: Response) {
@@ -79,11 +87,40 @@ export async function registerRequest(email: string, password: string) {
   });
 }
 
-export async function askRequest(token: string, question: string) {
-  return apiRequest<{ answer: string }>('/api/rag/ask', {
+export async function askRequest(token: string, question: string, conversationId?: number) {
+  return apiRequest<{ answer: string } & SaveChatResponse>('/api/rag/ask', {
     method: 'POST',
     token,
-    body: { question },
+    body: { question, conversationId },
+  });
+}
+
+export async function listChatConversationsRequest(token: string) {
+  return apiRequest<{ conversations: ApiChatConversation[] }>('/api/rag/chats', {
+    method: 'GET',
+    token,
+  });
+}
+
+export async function getChatConversationRequest(token: string, conversationId: number) {
+  return apiRequest<{ conversation: ApiChatConversation }>(`/api/rag/chats/${conversationId}`, {
+    method: 'GET',
+    token,
+  });
+}
+
+export async function createChatConversationRequest(token: string) {
+  return apiRequest<{ conversation: ApiChatConversation }>('/api/rag/chats', {
+    method: 'POST',
+    token,
+    body: {},
+  });
+}
+
+export async function deleteChatConversationRequest(token: string, conversationId: number) {
+  return apiRequest<{ message: string }>(`/api/rag/chats/${conversationId}`, {
+    method: 'DELETE',
+    token,
   });
 }
 
@@ -143,9 +180,11 @@ function decodeSsePayload(payload: string) {
 export async function askStreamRequest({
   token,
   question,
+  conversationId,
   documentId,
   onChunk,
   onStart,
+  onSaved,
 }: AskStreamOptions) {
   const response = await fetch(`${apiBaseUrl}/api/rag/ask/stream`, {
     method: 'POST',
@@ -155,6 +194,7 @@ export async function askStreamRequest({
     },
     body: JSON.stringify({
       question,
+      conversationId,
       documentId,
     }),
   });
@@ -218,6 +258,11 @@ export async function askStreamRequest({
           throw new Error(message);
         }
 
+        if (eventName === 'saved') {
+          onSaved?.(payload as unknown as SaveChatResponse);
+          continue;
+        }
+
         if (eventName === 'done') {
           break;
         }
@@ -245,5 +290,48 @@ export async function listUploadedDocumentsRequest(token: string) {
   return apiRequest<ListDocumentsResponse>('/api/rag/documents', {
     method: 'GET',
     token,
+  });
+}
+
+export async function deleteUploadedDocumentRequest(token: string, documentId: number) {
+  return apiRequest<{ message: string; document: ListDocumentsResponse['documents'][number] }>(`/api/rag/documents/${documentId}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+export async function listUsersRequest(token: string) {
+  return apiRequest<ListUsersResponse>('/api/auth/users', {
+    method: 'GET',
+    token,
+  });
+}
+
+export async function blockUserRequest(token: string, userId: number) {
+  return apiRequest<{ message: string; user: AuthResponse['user'] }>(`/api/auth/users/${userId}/block`, {
+    method: 'PATCH',
+    token,
+  });
+}
+
+export async function unblockUserRequest(token: string, userId: number) {
+  return apiRequest<{ message: string; user: AuthResponse['user'] }>(`/api/auth/users/${userId}/unblock`, {
+    method: 'PATCH',
+    token,
+  });
+}
+
+export async function updatePasswordRequest(
+  token: string,
+  currentPassword: string,
+  newPassword: string,
+) {
+  return apiRequest<{ message: string; user: AuthResponse['user'] }>('/api/auth/password', {
+    method: 'PATCH',
+    token,
+    body: {
+      currentPassword,
+      newPassword,
+    },
   });
 }

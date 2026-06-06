@@ -1,13 +1,23 @@
 import { useEffect, useState } from 'react';
 import { AdminPanel } from './components/AdminPanel';
 import { AuthScreen } from './components/AuthScreen';
-import { ChatHeader } from './components/ChatHeader';
 import { Composer } from './components/Composer';
 import { MessageList } from './components/MessageList';
+import { PasswordModal } from './components/PasswordModal';
 import { Sidebar } from './components/Sidebar';
-import { ApiError, listUploadedDocumentsRequest, uploadRequest } from './lib/api';
+import {
+  ApiError,
+  blockUserRequest,
+  deleteUploadedDocumentRequest,
+  listUploadedDocumentsRequest,
+  listUsersRequest,
+  unblockUserRequest,
+  updatePasswordRequest,
+  uploadRequest,
+} from './lib/api';
 import { useAuth } from './hooks/useAuth';
 import { useChat } from './hooks/useChat';
+import type { AuthUser } from './types/auth';
 import type { UploadedDocument } from './types/document';
 
 export const App = () => {
@@ -24,6 +34,17 @@ export const App = () => {
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(null);
+  const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
+  const [users, setUsers] = useState<AuthUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [actionUserId, setActionUserId] = useState<number | null>(null);
+  const [actionStatus, setActionStatus] = useState<string | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (auth.user) {
@@ -37,6 +58,8 @@ export const App = () => {
       setUploadedDocuments([]);
       setDocumentsLoading(false);
       setDocumentsError(null);
+      setDeletingDocumentId(null);
+      setDeleteStatus(null);
       return;
     }
 
@@ -77,6 +100,52 @@ export const App = () => {
       isCancelled = true;
     };
   }, [auth.token, auth.user]);
+
+  useEffect(() => {
+    if (!auth.user || auth.user.role !== 'admin' || !auth.token || activeView !== 'admin') {
+      setUsers([]);
+      setUsersLoading(false);
+      setUsersError(null);
+      return;
+    }
+
+    let isCancelled = false;
+    const token = auth.token;
+
+    const loadUsers = async () => {
+      setUsersLoading(true);
+      setUsersError(null);
+
+      try {
+        const result = await listUsersRequest(token);
+
+        if (!isCancelled) {
+          setUsers(result.users);
+        }
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        setUsers([]);
+        setUsersError(error instanceof Error ? error.message : 'Failed to load users');
+
+        if (error instanceof ApiError) {
+          auth.handleApiError(error);
+        }
+      } finally {
+        if (!isCancelled) {
+          setUsersLoading(false);
+        }
+      }
+    };
+
+    void loadUsers();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeView, auth.token, auth.user]);
 
   const closeSidebarOnMobile = () => {
     if (window.matchMedia('(max-width: 920px)').matches) {
@@ -156,6 +225,139 @@ export const App = () => {
     }
   };
 
+  const refreshAdminDocuments = async () => {
+    if (!auth.token || auth.user?.role !== 'admin') {
+      return;
+    }
+
+    const result = await listUploadedDocumentsRequest(auth.token);
+    setUploadedDocuments(result.documents);
+  };
+
+  const handleDeleteDocument = async (documentId: number) => {
+    if (!auth.token || auth.user?.role !== 'admin') {
+      return;
+    }
+
+    const shouldDelete = window.confirm('Delete this document and its chunks? This cannot be undone.');
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setDeletingDocumentId(documentId);
+    setDeleteStatus(null);
+
+    try {
+      const result = await deleteUploadedDocumentRequest(auth.token, documentId);
+      setDeleteStatus(result.message);
+      await refreshAdminDocuments();
+    } catch (error) {
+      setDeleteStatus(error instanceof Error ? error.message : 'Delete failed');
+
+      if (error instanceof ApiError) {
+        auth.handleApiError(error);
+      }
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  };
+
+  const refreshAdminUsers = async () => {
+    if (!auth.token || auth.user?.role !== 'admin' || activeView !== 'admin') {
+      return;
+    }
+
+    const result = await listUsersRequest(auth.token);
+    setUsers(result.users);
+  };
+
+  const handleBlockUser = async (userId: number) => {
+    if (!auth.token || auth.user?.role !== 'admin') {
+      return;
+    }
+
+    setActionUserId(userId);
+    setActionStatus(null);
+
+    try {
+      const result = await blockUserRequest(auth.token, userId);
+      setActionStatus(result.message);
+      await refreshAdminUsers();
+    } catch (error) {
+      setActionStatus(error instanceof Error ? error.message : 'Block failed');
+
+      if (error instanceof ApiError) {
+        auth.handleApiError(error);
+      }
+    } finally {
+      setActionUserId(null);
+    }
+  };
+
+  const handleUnblockUser = async (userId: number) => {
+    if (!auth.token || auth.user?.role !== 'admin') {
+      return;
+    }
+
+    setActionUserId(userId);
+    setActionStatus(null);
+
+    try {
+      const result = await unblockUserRequest(auth.token, userId);
+      setActionStatus(result.message);
+      await refreshAdminUsers();
+    } catch (error) {
+      setActionStatus(error instanceof Error ? error.message : 'Unblock failed');
+
+      if (error instanceof ApiError) {
+        auth.handleApiError(error);
+      }
+    } finally {
+      setActionUserId(null);
+    }
+  };
+
+  const handleOpenPasswordModal = () => {
+    setPasswordError(null);
+    setPasswordStatus(null);
+    setIsPasswordModalOpen(true);
+  };
+
+  const handleClosePasswordModal = () => {
+    if (isUpdatingPassword) {
+      return;
+    }
+
+    setIsPasswordModalOpen(false);
+    setPasswordError(null);
+    setPasswordStatus(null);
+  };
+
+  const handleUpdatePassword = async (currentPassword: string, newPassword: string) => {
+    if (!auth.token) {
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    setPasswordError(null);
+    setPasswordStatus(null);
+
+    try {
+      const result = await updatePasswordRequest(auth.token, currentPassword, newPassword);
+      auth.updateUser(result.user);
+      setPasswordStatus(result.message);
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : 'Password update failed');
+
+      if (error instanceof ApiError) {
+        auth.handleApiError(error);
+      }
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   if (!auth.isReady) {
     return (
       <div className="auth-shell">
@@ -192,6 +394,7 @@ export const App = () => {
         onSelectConversation={handleSelectConversation}
         onCreateConversation={handleCreateConversation}
         onLogout={auth.logout}
+        onOpenPasswordModal={handleOpenPasswordModal}
         user={auth.user}
         activeView={activeView}
         onViewChange={setActiveView}
@@ -200,23 +403,36 @@ export const App = () => {
 
       {auth.user.role === 'admin' && activeView === 'admin' ? (
         <AdminPanel
-          user={auth.user}
           documents={uploadedDocuments}
           documentsLoading={documentsLoading}
           documentsError={documentsError}
+          onDeleteDocument={handleDeleteDocument}
+          deletingDocumentId={deletingDocumentId}
+          deleteStatus={deleteStatus}
+          users={users}
+          usersLoading={usersLoading}
+          usersError={usersError}
           onUploadDocument={handleUploadDocument}
+          onBlockUser={handleBlockUser}
+          onUnblockUser={handleUnblockUser}
           uploadStatus={uploadStatus}
           isUploading={isUploading}
+          actionUserId={actionUserId}
+          actionStatus={actionStatus}
+          isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen((current) => !current)}
         />
       ) : (
         <main className="chat-panel">
-          <ChatHeader
-            conversation={chat.activeConversation}
-            isSidebarOpen={isSidebarOpen}
-            onToggleSidebar={() => setIsSidebarOpen((current) => !current)}
-            user={auth.user}
-          />
+          <button
+            className="workspace-toggle chat-header__menu-button"
+            type="button"
+            onClick={() => setIsSidebarOpen((current) => !current)}
+            aria-label={isSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+            aria-pressed={isSidebarOpen}
+          >
+            {isSidebarOpen ? '✕' : '☰'}
+          </button>
 
           <section className="chat-panel__stream">
             <div className="chat-panel__surface">
@@ -229,6 +445,15 @@ export const App = () => {
           </footer>
         </main>
       )}
+
+      <PasswordModal
+        isOpen={isPasswordModalOpen}
+        isSubmitting={isUpdatingPassword}
+        errorMessage={passwordError}
+        successMessage={passwordStatus}
+        onClose={handleClosePasswordModal}
+        onSubmit={handleUpdatePassword}
+      />
     </div>
   );
 };

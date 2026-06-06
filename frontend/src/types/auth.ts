@@ -22,3 +22,7 @@ export interface RegisterResponse extends AuthResponse {
   verificationRequired: boolean;
   verificationEmailSent: boolean;
 }
+
+export interface ListUsersResponse {
+  users: AuthUser[];
+}

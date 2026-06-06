@@ -1,56 +1,58 @@
 import type { AuthUser } from '../types/auth';
 import type { UploadedDocument } from '../types/document';
-import { UserAvatar } from './UserAvatar';
 
 interface AdminPanelProps {
-  user: AuthUser;
   documents: UploadedDocument[];
   documentsLoading: boolean;
   documentsError: string | null;
+  onDeleteDocument: (documentId: number) => void;
+  deletingDocumentId: number | null;
+  deleteStatus: string | null;
+  users: AuthUser[];
+  usersLoading: boolean;
+  usersError: string | null;
   onUploadDocument: (file: File) => void;
+  onBlockUser: (userId: number) => void;
+  onUnblockUser: (userId: number) => void;
   uploadStatus: string | null;
   isUploading: boolean;
+  actionUserId: number | null;
+  actionStatus: string | null;
+  isSidebarOpen: boolean;
   onToggleSidebar: () => void;
 }
 
 export const AdminPanel = ({
-  user,
   documents,
   documentsLoading,
   documentsError,
+  onDeleteDocument,
+  deletingDocumentId,
+  deleteStatus,
+  users,
+  usersLoading,
+  usersError,
   onUploadDocument,
+  onBlockUser,
+  onUnblockUser,
   uploadStatus,
   isUploading,
+  actionUserId,
+  actionStatus,
+  isSidebarOpen,
   onToggleSidebar,
 }: AdminPanelProps) => {
   return (
     <main className="chat-panel admin-panel">
-      <header className="chat-header">
-        <div className="chat-header__left">
-          <button
-            className="chat-header__menu-button"
-            type="button"
-            onClick={onToggleSidebar}
-            aria-label="Toggle sidebar"
-          >
-            ☰
-          </button>
-
-          <div>
-            <div className="chat-header__eyebrow">Admin workspace</div>
-            <h1 className="chat-header__title">Document uploads</h1>
-          </div>
-        </div>
-
-        <div className="chat-header__meta">
-          <UserAvatar user={user} size={38} />
-          <div className="chat-header__meta-copy">
-            <span className="chat-header__eyebrow">{user.email}</span>
-            <span className="chat-header__subtitle">Admin workspace access</span>
-          </div>
-          <span className="pill pill--accent">{user.role}</span>
-        </div>
-      </header>
+      <button
+        className="workspace-toggle chat-header__menu-button"
+        type="button"
+        onClick={onToggleSidebar}
+        aria-label={isSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+        aria-pressed={isSidebarOpen}
+      >
+        {isSidebarOpen ? '✕' : '☰'}
+      </button>
 
       <section className="chat-panel__stream admin-panel__stream">
         <div className="chat-panel__surface admin-panel__surface">
@@ -88,7 +90,8 @@ export const AdminPanel = ({
           <div className="admin-card admin-card--documents">
             <div className="admin-card__eyebrow">Uploaded documents</div>
             <h2 className="admin-card__title">All files stored in the workspace</h2>
-           
+
+            {deleteStatus ? <div className="admin-card__status admin-card__status--info">{deleteStatus}</div> : null}
 
             {documentsLoading ? (
               <div className="admin-card__status">Loading uploaded documents...</div>
@@ -108,9 +111,73 @@ export const AdminPanel = ({
                       </div>
                     </div>
 
-                    <div className="admin-document-row__badge">{formatFileSize(document.sizeBytes)}</div>
+                    <div className="admin-document-row__actions">
+                      <div className="admin-document-row__badge">{formatFileSize(document.sizeBytes)}</div>
+                      <button
+                        type="button"
+                        className="admin-document-row__delete"
+                        onClick={() => onDeleteDocument(document.id)}
+                        disabled={deletingDocumentId === document.id}
+                      >
+                        {deletingDocumentId === document.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
                   </article>
                 ))}
+              </div>
+            )}
+          </div>
+
+          <div className="admin-card admin-card--users">
+            <div className="admin-card__eyebrow">Workspace users</div>
+            <h2 className="admin-card__title">All users registered on the platform</h2>
+            <p className="admin-card__text">
+              Blocked users cannot sign in until you unblock them. Admin accounts are shown here only if they are not the current user.
+            </p>
+
+            {actionStatus ? <div className="admin-card__status admin-card__status--info">{actionStatus}</div> : null}
+
+            {usersLoading ? (
+              <div className="admin-card__status">Loading workspace users...</div>
+            ) : usersError ? (
+              <div className="admin-card__status admin-card__status--error">{usersError}</div>
+            ) : users.length === 0 ? (
+              <div className="admin-card__status">No other users found.</div>
+            ) : (
+              <div className="admin-users-list">
+                {users.map((user) => {
+                  const isActionPending = actionUserId === user.id;
+
+                  return (
+                    <article key={user.id} className="admin-user-row">
+                      <div className="admin-user-row__main">
+                        <div className="admin-user-row__title">{user.email}</div>
+                        <div className="admin-user-row__meta">
+                          <span>{user.role}</span>
+                          <span>User #{user.id}</span>
+                        </div>
+                      </div>
+
+                      <div className="admin-user-row__actions">
+                        <span className={`pill ${user.isBlocked ? 'pill--blocked' : 'pill--accent'}`}>
+                          {user.isBlocked ? 'Blocked' : 'Active'}
+                        </span>
+                        <button
+                          type="button"
+                          className={`admin-user-row__action${user.isBlocked ? ' admin-user-row__action--positive' : ' admin-user-row__action--negative'}`}
+                          onClick={() => (user.isBlocked ? onUnblockUser(user.id) : onBlockUser(user.id))}
+                          disabled={isActionPending}
+                        >
+                          {isActionPending
+                            ? 'Updating...'
+                            : user.isBlocked
+                              ? 'Unblock'
+                              : 'Block'}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>

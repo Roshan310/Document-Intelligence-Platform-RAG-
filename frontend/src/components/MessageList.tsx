@@ -23,7 +23,7 @@ export const MessageList = ({ messages }: MessageListProps) => {
             className={`message-row message-row--${message.role}`}
             aria-label={`${message.role} message`}
           >
-            <div className="message-row__avatar">{message.role === 'assistant' ? 'R' : 'You'}</div>
+            {/* <div className="message-row__avatar">{message.role === 'assistant' ? 'R' : 'You'}</div> */}
             <div className="message-row__content">
               <div className={`message-row__bubble${message.isStreaming ? ' message-row__bubble--streaming' : ''}`}>
                 {message.isStreaming && !message.content ? (
