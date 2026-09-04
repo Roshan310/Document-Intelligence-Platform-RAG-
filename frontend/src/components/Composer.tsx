@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowUp } from 'lucide-react';
 
 interface ComposerProps {
   onSend: (message: string) => void;
@@ -21,33 +22,32 @@ export const Composer = ({ onSend, disabled = false }: ComposerProps) => {
 
   return (
     <div className="composer">
-      <div className="composer__row">
-        <label className="composer__field">
-          <span className="sr-only">Type your message</span>
-          <input
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                submitMessage();
-              }
-            }}
-            type="text"
-            placeholder="Message the assistant..."
-            disabled={disabled}
-          />
-        </label>
-
-        <button
-          className="composer__send-button"
-          onClick={submitMessage}
-          type="button"
+      <label className="composer__field">
+        <span className="sr-only">Type your message</span>
+        <input
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              submitMessage();
+            }
+          }}
+          type="text"
+          placeholder="Ask a question about your documents..."
           disabled={disabled}
-        >
-          🡲
-        </button>
-      </div>
+        />
+      </label>
+
+      <button
+        className="composer__send-button"
+        onClick={submitMessage}
+        type="button"
+        disabled={disabled}
+        aria-label="Send message"
+      >
+        <ArrowUp size={18} strokeWidth={2} />
+      </button>
     </div>
   );
 };

@@ -1,10 +1,17 @@
-import { useEffect, useState } from 'react';
-import { AdminPanel } from './components/AdminPanel';
+import { useEffect, useMemo, useState } from 'react';
+import { Loader2, Menu } from 'lucide-react';
+import { AdminSidebar } from './components/AdminSidebar';
 import { AuthScreen } from './components/AuthScreen';
-import { Composer } from './components/Composer';
-import { MessageList } from './components/MessageList';
+import { BrandMark } from './components/BrandMark';
+import { ChatSidebar } from './components/ChatSidebar';
+import { ConversationRail } from './components/ConversationRail';
 import { PasswordModal } from './components/PasswordModal';
-import { Sidebar } from './components/Sidebar';
+import { ChatHistoryPage } from './pages/ChatHistoryPage';
+import { ChatPage } from './pages/ChatPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { DocumentsPage } from './pages/DocumentsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { UsersPage } from './pages/UsersPage';
 import {
   ApiError,
   blockUserRequest,
@@ -19,13 +26,14 @@ import { useAuth } from './hooks/useAuth';
 import { useChat } from './hooks/useChat';
 import type { AuthUser } from './types/auth';
 import type { UploadedDocument } from './types/document';
+import type { AppView } from './types/nav';
 
 export const App = () => {
   const auth = useAuth();
   const chat = useChat(auth.user, auth.token, auth.logout);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeView, setActiveView] = useState<'chat' | 'admin'>('chat');
+  const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -49,12 +57,13 @@ export const App = () => {
   useEffect(() => {
     if (auth.user) {
       setIsSidebarOpen(true);
-      setActiveView(auth.user.role === 'admin' ? 'admin' : 'chat');
+      setActiveView(auth.user.role === 'admin' ? 'dashboard' : 'ask');
     }
   }, [auth.user]);
 
+  // Every verified user can list documents; only admins can upload or delete them.
   useEffect(() => {
-    if (!auth.user || auth.user.role !== 'admin' || !auth.token) {
+    if (!auth.user || !auth.token) {
       setUploadedDocuments([]);
       setDocumentsLoading(false);
       setDocumentsError(null);
@@ -102,7 +111,7 @@ export const App = () => {
   }, [auth.token, auth.user]);
 
   useEffect(() => {
-    if (!auth.user || auth.user.role !== 'admin' || !auth.token || activeView !== 'admin') {
+    if (!auth.user || auth.user.role !== 'admin' || !auth.token || activeView !== 'users') {
       setUsers([]);
       setUsersLoading(false);
       setUsersError(null);
@@ -147,20 +156,43 @@ export const App = () => {
     };
   }, [activeView, auth.token, auth.user]);
 
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredConversations = useMemo(() => {
+    if (!normalizedSearch) {
+      return chat.conversations;
+    }
+
+    return chat.conversations.filter((conversation) => {
+      const combinedText = [conversation.title, conversation.subtitle, ...conversation.tags]
+        .join(' ')
+        .toLowerCase();
+
+      return combinedText.includes(normalizedSearch);
+    });
+  }, [chat.conversations, normalizedSearch]);
+
   const closeSidebarOnMobile = () => {
     if (window.matchMedia('(max-width: 920px)').matches) {
       setIsSidebarOpen(false);
     }
   };
 
+  // Picking or starting a conversation always lands you in the chat, whatever view you were on.
   const handleSelectConversation = (conversationId: string) => {
     chat.selectConversation(conversationId);
+    setActiveView('ask');
     closeSidebarOnMobile();
   };
 
   const handleCreateConversation = () => {
     chat.createNewConversation();
     setSearchTerm('');
+    setActiveView('ask');
+    closeSidebarOnMobile();
+  };
+
+  const handleChangeView = (view: AppView) => {
+    setActiveView(view);
     closeSidebarOnMobile();
   };
 
@@ -264,7 +296,7 @@ export const App = () => {
   };
 
   const refreshAdminUsers = async () => {
-    if (!auth.token || auth.user?.role !== 'admin' || activeView !== 'admin') {
+    if (!auth.token || auth.user?.role !== 'admin' || activeView !== 'users') {
       return;
     }
 
@@ -361,10 +393,11 @@ export const App = () => {
   if (!auth.isReady) {
     return (
       <div className="auth-shell">
-        <div className="auth-panel">
-          <div className="auth-panel__badge">RAG Workspace</div>
-          <h1 className="auth-panel__title">Loading workspace...</h1>
-          <p className="auth-panel__subtitle">Preparing your authenticated session.</p>
+        <div className="auth-card auth-loading">
+          <BrandMark className="auth-card__brand-mark" size={22} />
+          <div className="auth-card__title">Loading workspace…</div>
+          <p className="auth-card__subtitle">Preparing your authenticated session.</p>
+          <Loader2 size={20} strokeWidth={1.75} className="spinner" />
         </div>
       </div>
     );
@@ -382,69 +415,138 @@ export const App = () => {
     );
   }
 
+  const isAdmin = auth.user.role === 'admin';
+
+  const renderWorkspace = () => {
+    if (activeView === 'ask') {
+      return (
+        <div className="workspace">
+          <ChatPage
+            messages={chat.activeConversation?.messages ?? []}
+            onSend={chat.sendMessage}
+            isSending={chat.isSending}
+            rail={
+              // Members already have the conversation list in their sidebar.
+              isAdmin ? (
+                <ConversationRail
+                  conversations={filteredConversations}
+                  activeConversationId={chat.activeConversationId}
+                  searchTerm={searchTerm}
+                  onSearchTermChange={setSearchTerm}
+                  onSelectConversation={handleSelectConversation}
+                  onCreateConversation={handleCreateConversation}
+                />
+              ) : undefined
+            }
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="workspace workspace--scroll">
+        <div className="workspace__inner">
+          {isAdmin && activeView === 'dashboard' ? (
+            <DashboardPage
+              user={auth.user}
+              documents={uploadedDocuments}
+              documentsLoading={documentsLoading}
+              documentsError={documentsError}
+              conversations={chat.conversations}
+              onNavigate={handleChangeView}
+            />
+          ) : null}
+
+          {activeView === 'documents' ? (
+            <DocumentsPage
+              documents={uploadedDocuments}
+              documentsLoading={documentsLoading}
+              documentsError={documentsError}
+              canManage={isAdmin}
+              onUploadDocument={handleUploadDocument}
+              isUploading={isUploading}
+              uploadStatus={uploadStatus}
+              onDeleteDocument={handleDeleteDocument}
+              deletingDocumentId={deletingDocumentId}
+              deleteStatus={deleteStatus}
+            />
+          ) : null}
+
+          {isAdmin && activeView === 'users' ? (
+            <UsersPage
+              users={users}
+              usersLoading={usersLoading}
+              usersError={usersError}
+              onBlockUser={handleBlockUser}
+              onUnblockUser={handleUnblockUser}
+              actionUserId={actionUserId}
+              actionStatus={actionStatus}
+            />
+          ) : null}
+
+          {isAdmin && activeView === 'history' ? (
+            <ChatHistoryPage
+              conversations={filteredConversations}
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              onSelectConversation={handleSelectConversation}
+              onCreateConversation={handleCreateConversation}
+            />
+          ) : null}
+
+          {activeView === 'settings' ? (
+            <SettingsPage
+              user={auth.user}
+              onChangePassword={handleOpenPasswordModal}
+              onLogout={auth.logout}
+            />
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className={`app-shell${isSidebarOpen ? ' app-shell--sidebar-open' : ''}`}>
       <div className="app-shell__backdrop" onClick={closeSidebarOnMobile} aria-hidden="true" />
 
-      <Sidebar
-        conversations={chat.conversations}
-        activeConversationId={chat.activeConversationId}
-        searchTerm={searchTerm}
-        onSearchTermChange={setSearchTerm}
-        onSelectConversation={handleSelectConversation}
-        onCreateConversation={handleCreateConversation}
-        onLogout={auth.logout}
-        onOpenPasswordModal={handleOpenPasswordModal}
-        user={auth.user}
-        activeView={activeView}
-        onViewChange={setActiveView}
-        onCloseSidebar={() => setIsSidebarOpen(false)}
-      />
+      <button
+        className="workspace__toggle"
+        type="button"
+        onClick={() => setIsSidebarOpen((current) => !current)}
+        aria-label={isSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+        aria-pressed={isSidebarOpen}
+      >
+        <Menu size={18} strokeWidth={1.75} />
+      </button>
 
-      {auth.user.role === 'admin' && activeView === 'admin' ? (
-        <AdminPanel
-          documents={uploadedDocuments}
-          documentsLoading={documentsLoading}
-          documentsError={documentsError}
-          onDeleteDocument={handleDeleteDocument}
-          deletingDocumentId={deletingDocumentId}
-          deleteStatus={deleteStatus}
-          users={users}
-          usersLoading={usersLoading}
-          usersError={usersError}
-          onUploadDocument={handleUploadDocument}
-          onBlockUser={handleBlockUser}
-          onUnblockUser={handleUnblockUser}
-          uploadStatus={uploadStatus}
-          isUploading={isUploading}
-          actionUserId={actionUserId}
-          actionStatus={actionStatus}
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={() => setIsSidebarOpen((current) => !current)}
+      {isAdmin ? (
+        <AdminSidebar
+          activeView={activeView}
+          onViewChange={handleChangeView}
+          user={auth.user}
+          onChangePassword={handleOpenPasswordModal}
+          onLogout={auth.logout}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
         />
       ) : (
-        <main className="chat-panel">
-          <button
-            className="workspace-toggle chat-header__menu-button"
-            type="button"
-            onClick={() => setIsSidebarOpen((current) => !current)}
-            aria-label={isSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-            aria-pressed={isSidebarOpen}
-          >
-            {isSidebarOpen ? '✕' : '☰'}
-          </button>
-
-          <section className="chat-panel__stream">
-            <div className="chat-panel__surface">
-              <MessageList messages={chat.activeConversation?.messages ?? []} />
-            </div>
-          </section>
-
-          <footer className="chat-panel__composer-wrap">
-            <Composer onSend={chat.sendMessage} disabled={chat.isSending} />
-          </footer>
-        </main>
+        <ChatSidebar
+          activeView={activeView}
+          onViewChange={handleChangeView}
+          conversations={filteredConversations}
+          activeConversationId={chat.activeConversationId}
+          searchTerm={searchTerm}
+          onSearchTermChange={setSearchTerm}
+          onSelectConversation={handleSelectConversation}
+          onCreateConversation={handleCreateConversation}
+          user={auth.user}
+          onChangePassword={handleOpenPasswordModal}
+          onLogout={auth.logout}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
+        />
       )}
+
+      {renderWorkspace()}
 
       <PasswordModal
         isOpen={isPasswordModalOpen}

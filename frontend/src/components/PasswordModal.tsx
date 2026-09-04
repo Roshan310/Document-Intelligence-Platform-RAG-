@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 
 interface PasswordModalProps {
   isOpen: boolean;
@@ -53,26 +54,27 @@ export const PasswordModal = ({
   };
 
   return (
-    <div className="password-modal" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
-      <button className="password-modal__backdrop" type="button" onClick={onClose} aria-label="Close password dialog" />
+    <div className="modal" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
+      <button className="modal__backdrop" type="button" onClick={onClose} aria-label="Close password dialog" />
 
-      <form className="password-modal__panel" onSubmit={handleSubmit}>
-        <div className="password-modal__header">
+      <form className="modal__panel" onSubmit={handleSubmit}>
+        <div className="modal__header">
           <div>
-            <h2 id="password-modal-title" className="password-modal__title">
+            <h2 id="password-modal-title" className="modal__title">
               Update password
             </h2>
-            <p className="password-modal__subtitle">Enter your current password before setting a new one.</p>
+            <p className="modal__subtitle">Enter your current password before setting a new one.</p>
           </div>
 
-          <button className="password-modal__close" type="button" onClick={onClose} aria-label="Close">
-            ×
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Close">
+            <X size={18} strokeWidth={1.75} />
           </button>
         </div>
 
-        <label className="password-modal__field">
-          <span>Current password</span>
+        <label className="field">
+          <span className="field__label">Current password</span>
           <input
+            className="input"
             type="password"
             value={currentPassword}
             onChange={(event) => setCurrentPassword(event.target.value)}
@@ -81,9 +83,10 @@ export const PasswordModal = ({
           />
         </label>
 
-        <label className="password-modal__field">
-          <span>New password</span>
+        <label className="field">
+          <span className="field__label">New password</span>
           <input
+            className="input"
             type="password"
             value={newPassword}
             onChange={(event) => setNewPassword(event.target.value)}
@@ -93,9 +96,10 @@ export const PasswordModal = ({
           />
         </label>
 
-        <label className="password-modal__field">
-          <span>Confirm new password</span>
+        <label className="field">
+          <span className="field__label">Confirm new password</span>
           <input
+            className="input"
             type="password"
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
@@ -106,19 +110,25 @@ export const PasswordModal = ({
         </label>
 
         {localError || errorMessage ? (
-          <div className="password-modal__message password-modal__message--error">{localError ?? errorMessage}</div>
+          <div className="alert alert--error">
+            <AlertCircle size={16} strokeWidth={1.75} />
+            {localError ?? errorMessage}
+          </div>
         ) : null}
 
         {successMessage ? (
-          <div className="password-modal__message password-modal__message--success">{successMessage}</div>
+          <div className="alert alert--success">
+            <CheckCircle2 size={16} strokeWidth={1.75} />
+            {successMessage}
+          </div>
         ) : null}
 
-        <div className="password-modal__actions">
-          <button className="password-modal__secondary" type="button" onClick={onClose}>
+        <div className="modal__actions">
+          <button className="btn btn--secondary" type="button" onClick={onClose}>
             Cancel
           </button>
-          <button className="password-modal__primary" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Updating...' : 'Update password'}
+          <button className="btn btn--primary" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Updating…' : 'Update password'}
           </button>
         </div>
       </form>

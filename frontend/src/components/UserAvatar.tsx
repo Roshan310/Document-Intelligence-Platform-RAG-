@@ -21,7 +21,7 @@ export const UserAvatar = ({ user, size = 40, className = '' }: UserAvatarProps)
   return (
     <div
       className={rootClassName}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, fontSize: size }}
       role="img"
       aria-label={user ? `Avatar for ${user.email}` : 'User avatar'}
     >

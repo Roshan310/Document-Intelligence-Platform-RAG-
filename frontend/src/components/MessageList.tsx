@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { MessagesSquare } from 'lucide-react';
 import type { ChatMessage } from '../types/chat';
 
 interface MessageListProps {
@@ -15,7 +16,15 @@ export const MessageList = ({ messages }: MessageListProps) => {
   return (
     <div className="message-list">
       {messages.length === 0 ? (
-        <div className="sidebar__empty">Start a conversation by asking a question about the uploaded documents.</div>
+        <div className="empty-state">
+          <div className="empty-state__icon">
+            <MessagesSquare size={20} strokeWidth={1.75} />
+          </div>
+          <div className="empty-state__title">Ask anything about your documents</div>
+          <p className="empty-state__text">
+            Start a conversation by asking a question about the uploaded documents.
+          </p>
+        </div>
       ) : (
         messages.map((message) => (
           <article
@@ -23,21 +32,18 @@ export const MessageList = ({ messages }: MessageListProps) => {
             className={`message-row message-row--${message.role}`}
             aria-label={`${message.role} message`}
           >
-            {/* <div className="message-row__avatar">{message.role === 'assistant' ? 'R' : 'You'}</div> */}
-            <div className="message-row__content">
-              <div className={`message-row__bubble${message.isStreaming ? ' message-row__bubble--streaming' : ''}`}>
-                {message.isStreaming && !message.content ? (
-                  <span className="typing-indicator" aria-label="Assistant is typing">
-                    <span />
-                    <span />
-                    <span />
-                  </span>
-                ) : (
-                  message.content
-                )}
-              </div>
-              <div className="message-row__time">{message.timestamp}</div>
+            <div className={`message-row__bubble${message.isStreaming ? ' message-row__bubble--streaming' : ''}`}>
+              {message.isStreaming && !message.content ? (
+                <span className="typing-indicator" aria-label="Assistant is typing">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              ) : (
+                message.content
+              )}
             </div>
+            <div className="message-row__time">{message.timestamp}</div>
           </article>
         ))
       )}

@@ -1,5 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
+import { AlertCircle, Info } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 
 interface AuthScreenProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -35,38 +37,80 @@ export const AuthScreen = ({ onLogin, onRegister, errorMessage, infoMessage, isS
 
   return (
     <div className="auth-shell">
-      <div className="auth-panel">
-        <div className="auth-panel__badge">RAG Workspace</div>
-        <h1 className="auth-panel__title">Access your document chat</h1>
-        <p className="auth-panel__subtitle">
-          Register to create an account, verify your email, then sign in to chat with uploaded documents.
-        </p>
+      <div className="auth-card">
+        <div className="auth-card__brand">
+          <BrandMark className="auth-card__brand-mark" size={22} />
+          <div>
+            <div className="auth-card__brand-title">RAG Assistant</div>
+            <div className="auth-card__brand-subtitle">AI Document Intelligence</div>
+          </div>
+        </div>
+
+        <div>
+          <h1 className="auth-card__title">Access your document chat</h1>
+          <p className="auth-card__subtitle">
+            Register to create an account, verify your email, then sign in to chat with uploaded documents.
+          </p>
+        </div>
 
         <div className="auth-toggle">
-          <button type="button" className={mode === 'login' ? 'auth-toggle__button auth-toggle__button--active' : 'auth-toggle__button'} onClick={() => setMode('login')}>
+          <button
+            type="button"
+            className={mode === 'login' ? 'auth-toggle__button auth-toggle__button--active' : 'auth-toggle__button'}
+            onClick={() => setMode('login')}
+          >
             Login
           </button>
-          <button type="button" className={mode === 'register' ? 'auth-toggle__button auth-toggle__button--active' : 'auth-toggle__button'} onClick={() => setMode('register')}>
+          <button
+            type="button"
+            className={mode === 'register' ? 'auth-toggle__button auth-toggle__button--active' : 'auth-toggle__button'}
+            onClick={() => setMode('register')}
+          >
             Register
           </button>
         </div>
 
         <form className="auth-form" onSubmit={submit}>
-          <label className="auth-form__field">
-            <span>Email</span>
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="user@example.com" autoComplete="email" />
+          <label className="field">
+            <span className="field__label">Email</span>
+            <input
+              className="input"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              placeholder="user@example.com"
+              autoComplete="email"
+            />
           </label>
 
-          <label className="auth-form__field">
-            <span>Password</span>
-            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="Your password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+          <label className="field">
+            <span className="field__label">Password</span>
+            <input
+              className="input"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              type="password"
+              placeholder="Your password"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            />
           </label>
 
-          {errorMessage ? <div className="auth-form__message auth-form__message--error">{errorMessage}</div> : null}
-          {infoMessage ? <div className="auth-form__message auth-form__message--info">{infoMessage}</div> : null}
+          {errorMessage ? (
+            <div className="alert alert--error">
+              <AlertCircle size={16} strokeWidth={1.75} />
+              {errorMessage}
+            </div>
+          ) : null}
 
-          <button className="auth-form__submit" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Please wait...' : mode === 'login' ? 'Login' : 'Register'}
+          {infoMessage ? (
+            <div className="alert alert--info">
+              <Info size={16} strokeWidth={1.75} />
+              {infoMessage}
+            </div>
+          ) : null}
+
+          <button className="btn btn--primary btn--block" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Please wait…' : mode === 'login' ? 'Login' : 'Register'}
           </button>
         </form>
       </div>
