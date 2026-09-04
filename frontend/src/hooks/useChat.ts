@@ -3,6 +3,7 @@ import {
   ApiError,
   askStreamRequest,
   createChatConversationRequest,
+  deleteChatConversationRequest,
   getChatConversationRequest,
   listChatConversationsRequest,
   type SaveChatResponse,
@@ -79,6 +80,8 @@ export function useChat(
   const [activeConversationId, setActiveConversationId] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
+  const [conversationDeleteError, setConversationDeleteError] = useState<string | null>(null);
   const onUnauthorizedRef = useRef(onUnauthorized);
 
   const streamRef = useRef<StreamState>({
@@ -106,6 +109,8 @@ export function useChat(
     if (!user || !token) {
       setConversations([]);
       setActiveConversationId('');
+      setDeletingConversationId(null);
+      setConversationDeleteError(null);
       return;
     }
 
@@ -219,6 +224,56 @@ export function useChat(
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         onUnauthorized();
       }
+    }
+  };
+
+  const deleteConversation = async (conversationId: string) => {
+    const serverConversationId = parseConversationId(conversationId);
+
+    if (
+      !token ||
+      !user ||
+      serverConversationId === null ||
+      deletingConversationId !== null ||
+      (isSending && conversationId === activeConversationId)
+    ) {
+      return false;
+    }
+
+    setDeletingConversationId(conversationId);
+    setConversationDeleteError(null);
+
+    try {
+      await deleteChatConversationRequest(token, serverConversationId);
+
+      const remainingConversations = conversations.filter(
+        (conversation) => conversation.id !== conversationId,
+      );
+
+      setConversations(remainingConversations);
+
+      if (conversationId === activeConversationId) {
+        const nextConversation = remainingConversations[0];
+        setActiveConversationId(nextConversation?.id ?? '');
+
+        if (nextConversation) {
+          selectConversation(nextConversation.id);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      setConversationDeleteError(
+        error instanceof Error ? error.message : 'Failed to delete conversation',
+      );
+
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        onUnauthorized();
+      }
+
+      return false;
+    } finally {
+      setDeletingConversationId(null);
     }
   };
 
@@ -534,8 +589,12 @@ export function useChat(
     activeConversation,
     activeConversationId,
     isSending,
+    deletingConversationId,
+    conversationDeleteError,
+    clearConversationDeleteError: () => setConversationDeleteError(null),
     selectConversation,
     createNewConversation,
+    deleteConversation,
     sendMessage,
   };
 }

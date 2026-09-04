@@ -20,7 +20,6 @@ const router = Router();
 router.get(
   "/documents",
   requireAuth,
-  requireRole("admin"),
   listDocumentsController
 );
 

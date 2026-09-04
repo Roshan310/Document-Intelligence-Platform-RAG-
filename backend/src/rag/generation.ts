@@ -76,6 +76,9 @@ You are a helpful assistant.
 
 Answer ONLY using the provided context. If the answer is not in the context, say you do not know.
 
+Format the answer with Markdown. For mathematical notation, use LaTeX with $...$ for inline math
+and $$...$$ on separate lines for display math. Escape literal currency dollar signs as \\$.
+
 Context:
 ${context}
 

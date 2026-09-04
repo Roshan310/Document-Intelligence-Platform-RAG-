@@ -1,4 +1,4 @@
-import { MessageSquare, Plus, Search } from 'lucide-react';
+import { Loader2, MessageSquare, Plus, Search, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import type { ChatConversation } from '../types/chat';
 
@@ -7,6 +7,11 @@ interface ChatHistoryPageProps {
   searchTerm: string;
   onSearchTermChange: (value: string) => void;
   onSelectConversation: (conversationId: string) => void;
+  activeConversationId: string;
+  onDeleteConversation: (conversationId: string) => void;
+  deletingConversationId: string | null;
+  conversationDeleteError: string | null;
+  isSending: boolean;
   onCreateConversation: () => void;
 }
 
@@ -15,6 +20,11 @@ export const ChatHistoryPage = ({
   searchTerm,
   onSearchTermChange,
   onSelectConversation,
+  activeConversationId,
+  onDeleteConversation,
+  deletingConversationId,
+  conversationDeleteError,
+  isSending,
   onCreateConversation,
 }: ChatHistoryPageProps) => (
   <>
@@ -54,6 +64,12 @@ export const ChatHistoryPage = ({
         </span>
       </div>
 
+      {conversationDeleteError ? (
+        <div className="alert alert--error" role="alert">
+          {conversationDeleteError}
+        </div>
+      ) : null}
+
       {conversations.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state__icon">
@@ -65,21 +81,44 @@ export const ChatHistoryPage = ({
       ) : (
         <div className="history-list">
           {conversations.map((conversation) => (
-            <button
-              key={conversation.id}
-              className="history-row"
-              type="button"
-              onClick={() => onSelectConversation(conversation.id)}
-            >
-              <span className="history-row__icon">
-                <MessageSquare size={18} strokeWidth={1.75} />
-              </span>
-              <span className="history-row__main">
-                <span className="history-row__title">{conversation.title}</span>
-                <span className="history-row__subtitle">{conversation.subtitle}</span>
-              </span>
-              <span className="history-row__time">{conversation.updatedAt}</span>
-            </button>
+            <div key={conversation.id} className="history-row">
+              <button
+                className="history-row__select"
+                type="button"
+                onClick={() => onSelectConversation(conversation.id)}
+              >
+                <span className="history-row__icon">
+                  <MessageSquare size={18} strokeWidth={1.75} />
+                </span>
+                <span className="history-row__main">
+                  <span className="history-row__title">{conversation.title}</span>
+                  <span className="history-row__subtitle">{conversation.subtitle}</span>
+                </span>
+                <span className="history-row__time">{conversation.updatedAt}</span>
+              </button>
+
+              <button
+                className="history-row__delete"
+                type="button"
+                onClick={() => onDeleteConversation(conversation.id)}
+                disabled={
+                  deletingConversationId !== null ||
+                  (isSending && conversation.id === activeConversationId)
+                }
+                aria-label={`Delete ${conversation.title}`}
+                title={
+                  isSending && conversation.id === activeConversationId
+                    ? 'Wait for the response to finish'
+                    : 'Delete conversation'
+                }
+              >
+                {deletingConversationId === conversation.id ? (
+                  <Loader2 size={16} strokeWidth={1.75} className="spinner" />
+                ) : (
+                  <Trash2 size={16} strokeWidth={1.75} />
+                )}
+              </button>
+            </div>
           ))}
         </div>
       )}

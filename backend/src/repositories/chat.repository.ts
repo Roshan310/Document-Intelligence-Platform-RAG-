@@ -17,13 +17,15 @@ export const findUserConversations = async (userId: number) => {
 
 export const findUserConversationById = async (
   userId: number,
-  conversationId: number
+  conversationId: number,
+  transaction?: Transaction
 ) => {
   return ChatConversation.findOne({
     where: {
       id: conversationId,
       userId,
     },
+    transaction,
   });
 };
 
@@ -95,7 +97,7 @@ export const appendConversationMessages = async (
 ) => {
   return sequelize.transaction(async (transaction) => {
     const conversation = input.conversationId
-      ? await findUserConversationById(userId, input.conversationId)
+      ? await findUserConversationById(userId, input.conversationId, transaction)
       : await createConversation(
           userId,
           {
@@ -138,7 +140,11 @@ export const deleteUserConversation = async (
   conversationId: number
 ) => {
   return sequelize.transaction(async (transaction) => {
-    const conversation = await findUserConversationById(userId, conversationId);
+    const conversation = await findUserConversationById(
+      userId,
+      conversationId,
+      transaction
+    );
 
     if (!conversation) {
       return null;

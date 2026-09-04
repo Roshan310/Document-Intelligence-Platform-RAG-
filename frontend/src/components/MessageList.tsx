@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { MessagesSquare } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import rehypeKatex from 'rehype-katex';
+import remarkMath from 'remark-math';
 import type { ChatMessage } from '../types/chat';
 
 interface MessageListProps {
@@ -40,7 +43,16 @@ export const MessageList = ({ messages }: MessageListProps) => {
                   <span />
                 </span>
               ) : (
-                message.content
+                message.role === 'assistant'
+                  ? (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  )
+                  : message.content
               )}
             </div>
             <div className="message-row__time">{message.timestamp}</div>

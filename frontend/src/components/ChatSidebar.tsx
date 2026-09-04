@@ -15,6 +15,10 @@ interface ChatSidebarProps {
   searchTerm: string;
   onSearchTermChange: (value: string) => void;
   onSelectConversation: (conversationId: string) => void;
+  onDeleteConversation: (conversationId: string) => void;
+  deletingConversationId: string | null;
+  conversationDeleteError: string | null;
+  isSending: boolean;
   onCreateConversation: () => void;
   user: AuthUser | null;
   onChangePassword: () => void;
@@ -36,6 +40,10 @@ export const ChatSidebar = ({
   searchTerm,
   onSearchTermChange,
   onSelectConversation,
+  onDeleteConversation,
+  deletingConversationId,
+  conversationDeleteError,
+  isSending,
   onCreateConversation,
   user,
   onChangePassword,
@@ -101,6 +109,10 @@ export const ChatSidebar = ({
           conversations={conversations}
           activeConversationId={activeConversationId}
           onSelectConversation={onSelectConversation}
+          onDeleteConversation={onDeleteConversation}
+          deletingConversationId={deletingConversationId}
+          deleteError={conversationDeleteError}
+          isSending={isSending}
           variant="dark"
           emptyMessage="No conversations match that filter."
         />

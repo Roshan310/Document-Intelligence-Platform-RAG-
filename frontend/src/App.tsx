@@ -5,6 +5,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { BrandMark } from './components/BrandMark';
 import { ChatSidebar } from './components/ChatSidebar';
 import { ConversationRail } from './components/ConversationRail';
+import { DeleteConversationModal } from './components/DeleteConversationModal';
 import { PasswordModal } from './components/PasswordModal';
 import { ChatHistoryPage } from './pages/ChatHistoryPage';
 import { ChatPage } from './pages/ChatPage';
@@ -53,11 +54,13 @@ export const App = () => {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
+  const [pendingConversationDeleteId, setPendingConversationDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (auth.user) {
       setIsSidebarOpen(true);
       setActiveView(auth.user.role === 'admin' ? 'dashboard' : 'ask');
+      setPendingConversationDeleteId(null);
     }
   }, [auth.user]);
 
@@ -170,6 +173,8 @@ export const App = () => {
       return combinedText.includes(normalizedSearch);
     });
   }, [chat.conversations, normalizedSearch]);
+  const conversationPendingDeletion =
+    chat.conversations.find((conversation) => conversation.id === pendingConversationDeleteId) ?? null;
 
   const closeSidebarOnMobile = () => {
     if (window.matchMedia('(max-width: 920px)').matches) {
@@ -189,6 +194,38 @@ export const App = () => {
     setSearchTerm('');
     setActiveView('ask');
     closeSidebarOnMobile();
+  };
+
+  const handleDeleteConversation = (conversationId: string) => {
+    const conversation = chat.conversations.find((item) => item.id === conversationId);
+
+    if (!conversation) {
+      return;
+    }
+
+    chat.clearConversationDeleteError();
+    setPendingConversationDeleteId(conversation.id);
+  };
+
+  const handleCloseDeleteConversationModal = () => {
+    if (chat.deletingConversationId !== null) {
+      return;
+    }
+
+    chat.clearConversationDeleteError();
+    setPendingConversationDeleteId(null);
+  };
+
+  const handleConfirmDeleteConversation = async () => {
+    if (!pendingConversationDeleteId) {
+      return;
+    }
+
+    const wasDeleted = await chat.deleteConversation(pendingConversationDeleteId);
+
+    if (wasDeleted) {
+      setPendingConversationDeleteId(null);
+    }
   };
 
   const handleChangeView = (view: AppView) => {
@@ -434,6 +471,10 @@ export const App = () => {
                   searchTerm={searchTerm}
                   onSearchTermChange={setSearchTerm}
                   onSelectConversation={handleSelectConversation}
+                  onDeleteConversation={handleDeleteConversation}
+                  deletingConversationId={chat.deletingConversationId}
+                  conversationDeleteError={chat.conversationDeleteError}
+                  isSending={chat.isSending}
                   onCreateConversation={handleCreateConversation}
                 />
               ) : undefined
@@ -490,6 +531,11 @@ export const App = () => {
               searchTerm={searchTerm}
               onSearchTermChange={setSearchTerm}
               onSelectConversation={handleSelectConversation}
+              activeConversationId={chat.activeConversationId}
+              onDeleteConversation={handleDeleteConversation}
+              deletingConversationId={chat.deletingConversationId}
+              conversationDeleteError={chat.conversationDeleteError}
+              isSending={chat.isSending}
               onCreateConversation={handleCreateConversation}
             />
           ) : null}
@@ -538,6 +584,10 @@ export const App = () => {
           searchTerm={searchTerm}
           onSearchTermChange={setSearchTerm}
           onSelectConversation={handleSelectConversation}
+          onDeleteConversation={handleDeleteConversation}
+          deletingConversationId={chat.deletingConversationId}
+          conversationDeleteError={chat.conversationDeleteError}
+          isSending={chat.isSending}
           onCreateConversation={handleCreateConversation}
           user={auth.user}
           onChangePassword={handleOpenPasswordModal}
@@ -547,6 +597,14 @@ export const App = () => {
       )}
 
       {renderWorkspace()}
+
+      <DeleteConversationModal
+        conversationTitle={conversationPendingDeletion?.title ?? null}
+        isDeleting={chat.deletingConversationId !== null}
+        errorMessage={chat.conversationDeleteError}
+        onClose={handleCloseDeleteConversationModal}
+        onConfirm={() => void handleConfirmDeleteConversation()}
+      />
 
       <PasswordModal
         isOpen={isPasswordModalOpen}

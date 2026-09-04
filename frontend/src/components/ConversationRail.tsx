@@ -8,6 +8,10 @@ interface ConversationRailProps {
   searchTerm: string;
   onSearchTermChange: (value: string) => void;
   onSelectConversation: (conversationId: string) => void;
+  onDeleteConversation: (conversationId: string) => void;
+  deletingConversationId: string | null;
+  conversationDeleteError: string | null;
+  isSending: boolean;
   onCreateConversation: () => void;
 }
 
@@ -17,6 +21,10 @@ export const ConversationRail = ({
   searchTerm,
   onSearchTermChange,
   onSelectConversation,
+  onDeleteConversation,
+  deletingConversationId,
+  conversationDeleteError,
+  isSending,
   onCreateConversation,
 }: ConversationRailProps) => (
   <aside className="chat-rail">
@@ -44,6 +52,10 @@ export const ConversationRail = ({
       conversations={conversations}
       activeConversationId={activeConversationId}
       onSelectConversation={onSelectConversation}
+      onDeleteConversation={onDeleteConversation}
+      deletingConversationId={deletingConversationId}
+      deleteError={conversationDeleteError}
+      isSending={isSending}
       variant="light"
       emptyMessage="No conversations match that filter."
     />
