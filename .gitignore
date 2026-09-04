@@ -1,6 +1,12 @@
 backend/node_modules
 frontend/node_modules
 backend/dist
+frontend/dist
 .env
 .env.example
 daily-log.md
+node_modules
+docs/
+.claude
+AGENTS.md
+RAG_Design.png
